@@ -16,9 +16,6 @@ import (
 	"time"
 )
 
-var clientID = ""
-var clientSecret = ""
-
 type xblAuthReq struct {
 	Properties struct {
 		AuthMethod string `json:"AuthMethod"`
@@ -84,7 +81,7 @@ type Profile struct {
 }
 
 var msConfig = oauth2.Config{
-	ClientID:    clientID,
+	ClientID:    "",
 	Endpoint:    microsoft.LiveConnectEndpoint,
 	RedirectURL: "http://127.0.0.1",
 	Scopes:      []string{"XboxLive.signin", "XboxLive.offline_access"},
@@ -92,7 +89,7 @@ var msConfig = oauth2.Config{
 
 //SetClient 来自microsoft的clientID和secret
 func SetClient(id, secret string) {
-	clientID, clientSecret = id, secret
+	msConfig.ClientID, msConfig.ClientSecret = id, secret
 }
 
 func newXBLAuth(astk string) *xblAuthReq {
