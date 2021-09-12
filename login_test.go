@@ -1,4 +1,4 @@
-package MSMCAuth
+package msauth
 
 import "testing"
 
