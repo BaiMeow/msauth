@@ -13,6 +13,7 @@ func TestGetMSCode(t *testing.T) {
 
 func TestLogin(t *testing.T) {
 	SetClient("67e646fb-20f3-4595-9830-56773a07637d", "")
+	SetRedirectURL("http://127.0.0.1:25595")
 	profile, astk, err := Login()
 	if err != nil {
 		t.Fatal(err)

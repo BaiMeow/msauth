@@ -5,14 +5,17 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/microsoft"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -83,13 +86,18 @@ type Profile struct {
 var msConfig = oauth2.Config{
 	ClientID:    "",
 	Endpoint:    microsoft.LiveConnectEndpoint,
-	RedirectURL: "http://127.0.0.1",
+	RedirectURL: "http://127.0.0.1:80",
 	Scopes:      []string{"XboxLive.signin", "XboxLive.offline_access"},
 }
 
 //SetClient 来自microsoft的clientID和secret
 func SetClient(id, secret string) {
 	msConfig.ClientID, msConfig.ClientSecret = id, secret
+}
+
+//SetRedirectURL 默认为"http://127.0.0.1"，具体看你azure那边重定向URI的设置
+func SetRedirectURL(RedirectURL string) {
+	msConfig.RedirectURL = RedirectURL
 }
 
 func newXBLAuth(astk string) *xblAuthReq {
@@ -116,8 +124,10 @@ func getMSAuthCode() (string, error) {
 	//get microsoft auth code
 
 	state := strconv.Itoa(rand.Int())
+	addr := strings.Replace(msConfig.RedirectURL, "https://", "", -1)
+	addr = strings.Replace(msConfig.RedirectURL, "http://", "", -1)
 	server := http.Server{
-		Addr: "127.0.0.1:80",
+		Addr: addr,
 	}
 	codeChan := make(chan string)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -128,13 +138,20 @@ func getMSAuthCode() (string, error) {
 		w.Write([]byte("登陆完成，你现在可以关闭这个窗口"))
 		codeChan <- q["code"][0]
 	})
+	go func() {
+		err := server.ListenAndServe()
+		if err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				return
+			}
+			log.Fatalf("无法开启web服务：%v\n", err)
+		}
+	}()
 	if err := exec.Command("powershell", "start", "\""+msConfig.AuthCodeURL(state)+"\"").Start(); err != nil {
 		return "", err
 	}
-	go server.ListenAndServe()
 	msCode := <-codeChan
-	server.Shutdown(context.Background())
-	return msCode, nil
+	return msCode, server.Shutdown(context.Background())
 }
 
 func getMSAuthToken(authCode string) (string, error) {
